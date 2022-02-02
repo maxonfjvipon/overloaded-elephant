@@ -62,7 +62,7 @@ trait Overloadable
                         if (!$found) {
                             throw new Exception("Type mismatch of object with index " . $count);
                         }
-                    } elseif (is_subclass_of($arg, $rules[$index])) {
+                    } elseif (is_subclass_of($arg, $rules[$index]) || get_class($arg) === $rules[$index]) {
                         $newArgs[$count] = $arg;
                     } else {
                         throw new Exception("Type mismatch of object with index " . $count);
