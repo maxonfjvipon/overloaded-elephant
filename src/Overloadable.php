@@ -32,26 +32,31 @@ trait Overloadable
                 if (array_key_exists($count, $rules)) { // [count => ...], [...]
                     $index = $count;
                 }
+                var_dump($type);
                 if ($type === 'object') {
                     $found = false;
                     if (is_array($rules[$index])) {
                         foreach (array_keys($rules[$index]) as $key) {
-                            if (is_subclass_of($arg, $key)) {
-                                if (is_callable($rules[$index][$key])) {
-                                    $newArgs[$count] = $rules[$index][$key]($arg);
-                                } else {
-                                    $newArgs[$count] = $rules[$index][$key];
+                            if (is_string($key)) {
+                                if (is_subclass_of($arg, $key)) {
+                                    if (is_callable($rules[$index][$key])) {
+                                        $newArgs[$count] = $rules[$index][$key]($arg);
+                                    } else {
+                                        $newArgs[$count] = $rules[$index][$key];
+                                    }
+                                    $found = true;
+                                    break;
                                 }
-                                $found = true;
-                                break;
                             }
                         }
                         if (!$found) {
                             foreach (array_values($rules[$index]) as $value) {
-                                if (is_subclass_of($arg, $value)) {
-                                    $newArgs[$count] = $arg;
-                                    $found = true;
-                                    break;
+                                if (is_string($value)) {
+                                    if (is_subclass_of($arg, $value)) {
+                                        $newArgs[$count] = $arg;
+                                        $found = true;
+                                        break;
+                                    }
                                 }
                             }
                         }
