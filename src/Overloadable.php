@@ -37,7 +37,7 @@ trait Overloadable
                     if (is_array($rules[$index])) {
                         foreach (array_keys($rules[$index]) as $key) {
                             if (is_string($key)) {
-                                if (is_subclass_of($arg, $key)) {
+                                if (is_subclass_of($arg, $key) || get_class($arg) === $key) {
                                     if (is_callable($rules[$index][$key])) {
                                         $newArgs[$count] = $rules[$index][$key]($arg);
                                     } else {
@@ -51,7 +51,7 @@ trait Overloadable
                         if (!$found) {
                             foreach (array_values($rules[$index]) as $value) {
                                 if (is_string($value)) {
-                                    if (is_subclass_of($arg, $value)) {
+                                    if (is_subclass_of($arg, $value) || get_class($arg) === $value) {
                                         $newArgs[$count] = $arg;
                                         $found = true;
                                         break;
