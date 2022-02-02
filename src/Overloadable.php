@@ -32,7 +32,6 @@ trait Overloadable
                 if (array_key_exists($count, $rules)) { // [count => ...], [...]
                     $index = $count;
                 }
-                var_dump($type);
                 if ($type === 'object') {
                     $found = false;
                     if (is_array($rules[$index])) {
