@@ -11,12 +11,26 @@ use Exception;
 trait Overloadable
 {
     /**
+     * @var array $aliases
+     */
+    private array $aliases = [
+        'integer' => 'int',
+        'double' => 'float',
+        'boolean' => 'bool',
+        'string' => 'string',
+        'resource' => 'resource',
+        'array' => 'array',
+        'NULL' => 'NULL',
+        'unknown type' => 'unknown type'
+    ];
+
+    /**
      * @param array $args
      * @param $rules
      * @return array
      * @throws Exception
      */
-    private static function overload(array $args, $rules): array
+    private function overload(array $args, $rules): array
     {
         $rules = is_callable($rules) ? $rules() : $rules; // fn() => ... -> ...
         $rules = is_array($rules) ? $rules : [$rules]; // not_array -> [...]
@@ -69,18 +83,24 @@ trait Overloadable
                     }
                 } else {
                     if (is_array($rules[$index])) { // [index => [...]]
-                        if (in_array($type, $rules[$index])) { // [index => [..., type]]
+                        if (in_array($type, $rules[$index]) || in_array($this->aliases[$type], $rules[$index])) {
                             $newArgs[$count] = $arg;
-                        } elseif (array_key_exists($type, $rules[$index])) { // [index => [type => ...]]
+                        } elseif (array_key_exists($type, $rules[$index])) {
                             if (is_callable($rules[$index][$type])) { // [index => [type => fn() => ...]]
                                 $newArgs[$count] = $rules[$index][$type]($arg);
                             } else { // [index => [type => value]]
                                 $newArgs[$count] = $rules[$index][$type]; // value
                             }
+                        } elseif (array_key_exists($this->aliases[$type], $rules[$index])) {
+                            if (is_callable($rules[$index][$this->aliases[$type]])) { // [index => [type => fn() => ...]]
+                                $newArgs[$count] = $rules[$index][$this->aliases[$type]]($arg);
+                            } else { // [index => [type => value]]
+                                $newArgs[$count] = $rules[$index][$this->aliases[$type]]; // value
+                            }
                         } else {
                             throw new Exception("Type mismatch on argument with index " . $count);
                         }
-                    } elseif ($rules[$index] === $type) { // [index => not_array_value]
+                    } elseif ($rules[$index] === $type || $rules[$index] === $this->aliases[$type]) { // [index => not_array_value]
                         $newArgs[$count] = $arg;
                     } else {
                         throw new Exception("Type mismatch on argument with index " . $count);
