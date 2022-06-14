@@ -18,100 +18,102 @@ trait Overloadable
         'double' => 'float',
         'boolean' => 'bool',
         'string' => 'string',
-        'resource' => 'resource',
         'array' => 'array',
-        'NULL' => 'NULL',
-        'unknown type' => 'unknown type'
+        'NULL' => 'null',
+        'unknown type' => 'unknown'
     ];
 
     /**
      * @param array $args
-     * @param $rules
+     * @param array<array> $rules
      * @return array
      * @throws Exception
      */
-    private function overload(array $args, $rules): array
+    private function overload(array $args, array $rules): array
     {
-        $rules = is_callable($rules) ? $rules() : $rules; // fn() => ... -> ...
-        $rules = is_array($rules) ? $rules : [$rules]; // not_array -> [...]
-        $count = 0;
-        $index = $count;
+        $counter = 0;
+        $index = $counter;
         $newArgs = array_values($args);
         if (count($rules) !== 0) { // []
-            if (!array_key_exists(0, $rules)) {
-                throw new Exception("Array of rules must contain item with index 0");
-            }
-            foreach ($args as $arg) {
+            foreach ($args as $argKey => $arg) {
                 $type = gettype($arg); // boolean, integer, double, string, array, object, resource, NULL, unknown type
-                if (array_key_exists($count, $rules)) { // [count => ...], [...]
-                    $index = $count;
+                if (array_key_exists($counter, $rules)) { // [counter => [...]], [...]
+                    $index = $counter;
                 }
-                if ($type === 'object') {
+                if ($type === 'object') { // class name, callback
                     $found = false;
-                    if (is_array($rules[$index])) {
-                        foreach (array_keys($rules[$index]) as $key) {
-                            if (is_string($key)) {
-                                if (is_subclass_of($arg, $key) || get_class($arg) === $key) {
-                                    if (is_callable($rules[$index][$key])) {
-                                        $newArgs[$count] = $rules[$index][$key]($arg);
-                                    } else {
-                                        $newArgs[$count] = $rules[$index][$key];
-                                    }
+                    $this->checkRuleIsArray($rules[$index]);
+                    foreach (array_keys($rules[$index]) as $ruleKey) {
+                        if (is_string($ruleKey)) {
+                            if (is_subclass_of($arg, $ruleKey) || get_class($arg) === $ruleKey) {
+                                $this->checkRuleActionIsCallback($rules[$index][$ruleKey]);
+                                $newArgs[$argKey] = $rules[$index][$ruleKey]($arg);
+                                $found = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!$found) {
+                        foreach ($rules[$index] as $ruleValue) {
+                            if (is_string($ruleValue)) {
+                                if (is_subclass_of($arg, $ruleValue) || get_class($arg) === $ruleValue) {
+                                    $newArgs[$argKey] = $arg;
                                     $found = true;
                                     break;
                                 }
                             }
                         }
-                        if (!$found) {
-                            foreach (array_values($rules[$index]) as $value) {
-                                if (is_string($value)) {
-                                    if (is_subclass_of($arg, $value) || get_class($arg) === $value) {
-                                        $newArgs[$count] = $arg;
-                                        $found = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        if (!$found) {
-                            throw new Exception("Type mismatch of object with index " . $count);
-                        }
-                    } elseif (is_subclass_of($arg, $rules[$index]) || get_class($arg) === $rules[$index]) {
-                        $newArgs[$count] = $arg;
-                    } else {
-                        throw new Exception("Type mismatch of object with index " . $count);
                     }
-                } else {
-                    if (is_array($rules[$index])) { // [index => [...]]
-                        if (in_array($type, $rules[$index]) || in_array($this->aliases[$type], $rules[$index])) {
-                            $newArgs[$count] = $arg;
-                        } elseif (array_key_exists($type, $rules[$index])) {
-                            if (is_callable($rules[$index][$type])) { // [index => [type => fn() => ...]]
-                                $newArgs[$count] = $rules[$index][$type]($arg);
-                            } else { // [index => [type => value]]
-                                $newArgs[$count] = $rules[$index][$type]; // value
-                            }
-                        } elseif (array_key_exists($this->aliases[$type], $rules[$index])) {
-                            if (is_callable($rules[$index][$this->aliases[$type]])) { // [index => [type => fn() => ...]]
-                                $newArgs[$count] = $rules[$index][$this->aliases[$type]]($arg);
-                            } else { // [index => [type => value]]
-                                $newArgs[$count] = $rules[$index][$this->aliases[$type]]; // value
-                            }
-                        } else {
-                            throw new Exception("Type mismatch on argument with index " . $count);
-                        }
-                    } elseif ($rules[$index] === $type || $rules[$index] === $this->aliases[$type]) { // [index => not_array_value]
-                        $newArgs[$count] = $arg;
+                    if (!$found) {
+                        $this->typeMismatch($type, $argKey);
+                    }
+                } else { // not object or callback
+                    $this->checkRuleIsArray($rules[$index]);
+                    if (in_array($type, $rules[$index]) || in_array($this->aliases[$type], $rules[$index])) {
+                        $newArgs[$argKey] = $arg;
+                    } elseif (array_key_exists($type, $rules[$index])) {
+                        $this->checkRuleActionIsCallback($rules[$index][$type]);
+                        $newArgs[$argKey] = $rules[$index][$type]($arg);
+                    } elseif (array_key_exists($this->aliases[$type], $rules[$index])) {
+                        $this->checkRuleActionIsCallback($rules[$index][$this->aliases[$type]]);
+                        $newArgs[$argKey] = $rules[$index][$this->aliases[$type]]($arg);
                     } else {
-                        throw new Exception("Type mismatch on argument with index " . $count);
+                        $this->typeMismatch($type, $argKey);
                     }
                 }
-                $count++;
+                $counter++;
             }
         } else {
-            throw new Exception("Array of rules is empty");
+            return $args;
         }
         uksort($newArgs, fn($a, $b) => $a <=> $b);
         return $newArgs;
+    }
+
+    /**
+     * @throws Exception
+     */
+    private function checkRuleIsArray($rule)
+    {
+        if (!is_array($rule))
+            throw new Exception("Rule instance must be an array. See documentation");
+    }
+
+    /**
+     * @throws Exception
+     */
+    private function checkRuleActionIsCallback($ruleAction)
+    {
+        if (!is_callable($ruleAction)) {
+            throw new Exception("Action with argument must be provided only via callbacks");
+        }
+    }
+
+    /**
+     * @throws Exception
+     */
+    private function typeMismatch($argType, $argKey)
+    {
+        throw new Exception("Type mismatch of object with type: " . $argType ." with key: " . $argKey);
     }
 }
