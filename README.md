@@ -12,17 +12,9 @@ I wanted to have an ability to make classes that are able to manage their argume
 final class EqualityOf implements Logical
 {
     use Overloadable;
-
-    /**
-     * @var string|int|float|Text|array|Arrayable|Logical|Numerable
-     */
-    private string|int|float|Text|array|Arrayable|Logical|Numerable $arg1;
-
-    /**
-     * @var string|int|float|Text|array|Arrayable|Logical|Numerable
-     */
-    private string|int|float|Text|array|Arrayable|Logical|Numerable $arg2;
-
+    
+    //...
+    
     /**
      * Ctor.
      * @param string|int|float|Text|array|Arrayable|Logical|Numerable $arg1
@@ -84,7 +76,9 @@ $this->overload([$arg1, 'key' => $arg2], ['key' => ['integer', 'float', ...]]) /
 ```php
 $this->overload([$arg1], [[
   'integer',
-  SomeClass::class => fn() => 
+  SomeClass::class => fn(SomeClass $object) => $object->someMethod() 
 ]])
 ```
-8. Action is a callback with one argument
+8. Action is a callback with one argument - you parameter - that should return something (or not)
+9. If rule element has no action, it just signals that given type is allowed for the argument and the argument should not be formatted and should return as is.
+10. The result of calling `overload` - array with your arguments formatted according to the rules
