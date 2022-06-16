@@ -82,3 +82,25 @@ $this->overload([$arg1], [[
 8. Action is a callback with one argument - you parameter - that should return something (or not)
 9. If rule element has no action, it just signals that given type is allowed for the argument and the argument should not be formatted and should return as is.
 10. The result of calling `overload` - array with your arguments formatted according to the rules
+
+
+
+## One more example
+```php
+public class SomeClass {
+  use Overloaded;
+  
+  __construct(private int|callbale $arg) {}
+
+  public function method(): int
+  {
+    return $this-overload([$this->arg], [[
+      'integer',
+      Closure::class => (Closure $callback) => call_user_func($callback)
+    ]])[0];
+  }
+}
+
+echo (new SomeClass(42))->method(); // 42
+echo (new SomeClass(fn() => 12))->method(); // 12
+```
