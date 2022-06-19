@@ -33,7 +33,7 @@ trait Overloadable
     {
         $counter = 0;
         $index = $counter;
-        $newArgs = array_values($args);
+        $newArgs = [];
         if (count($rules) !== 0) { // []
             foreach ($args as $argKey => $arg) {
                 $type = gettype($arg); // boolean, integer, double, string, array, object, resource, NULL, unknown type
@@ -86,7 +86,6 @@ trait Overloadable
         } else {
             return $args;
         }
-        uksort($newArgs, fn($a, $b) => $a <=> $b);
         return $newArgs;
     }
 
