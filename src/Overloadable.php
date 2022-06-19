@@ -65,7 +65,7 @@ trait Overloadable
                         }
                     }
                     if (!$found) {
-                        $this->typeMismatch($type, $argKey);
+                        $newArgs[$argKey] = $arg;
                     }
                 } else { // not object or callback
                     $this->checkRuleIsArray($rules[$index]);
