@@ -88,7 +88,7 @@ trait Overloadable
                 } else if (in_array($this->aliases[$type], $rules[$index])) {
                     $newArgs[$argKey] = $arg;
                 } else { // any other type
-                    $newArgs[$argKey] = $arg;
+                    $this->typeMismatch($type, $argKey);
                 }
                 $counter++;
             }
