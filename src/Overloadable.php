@@ -11,6 +11,14 @@ use Exception;
 trait Overloadable
 {
     /**
+     * @var array|string[] $PRIMITIVES
+     */
+    private array $PRIMITIVES = [
+        'integer', 'int', 'double', 'float', 'boolean', 'bool', 'string',
+        'array', 'NULL', 'null', 'unknown type', 'unknown'
+    ];
+
+    /**
      * @var array $aliases
      */
     private array $aliases = [
@@ -40,24 +48,26 @@ trait Overloadable
                 if (array_key_exists($counter, $rules)) { // [counter => [...]], [...]
                     $index = $counter;
                 }
-                if ($type === 'object') { // class name, callback
+                if ($type === 'object') {
                     $found = false;
                     $this->checkRuleIsArray($rules[$index]);
-                    foreach (array_keys($rules[$index]) as $ruleKey) {
-                        if (is_string($ruleKey)) {
-                            if (is_subclass_of($arg, $ruleKey) || get_class($arg) === $ruleKey) {
-                                $this->checkRuleActionIsCallback($rules[$index][$ruleKey]);
-                                $newArgs[$argKey] = $rules[$index][$ruleKey]($arg);
+                    $filteredRules = array_filter(
+                        $rules[$index],
+                        fn($value, $key) => !in_array($value, $this->PRIMITIVES) && !in_array($key, $this->PRIMITIVES),
+                        ARRAY_FILTER_USE_BOTH
+                    );
+                    foreach (array_keys($filteredRules) as $ruleKey) {
+                        if (is_string($ruleValue = $filteredRules[$ruleKey])) {
+                            if (is_subclass_of($arg, $ruleValue) || get_class($arg) === $ruleValue) {
+                                $newArgs[$argKey] = $arg;
                                 $found = true;
                                 break;
                             }
-                        }
-                    }
-                    if (!$found) {
-                        foreach ($rules[$index] as $ruleValue) {
-                            if (is_string($ruleValue)) {
-                                if (is_subclass_of($arg, $ruleValue) || get_class($arg) === $ruleValue) {
-                                    $newArgs[$argKey] = $arg;
+                        } else {
+                            if (is_string($ruleKey)) {
+                                if (is_subclass_of($arg, $ruleKey) || get_class($arg) === $ruleKey) {
+                                    $this->checkRuleActionIsCallback($rules[$index][$ruleKey]);
+                                    $newArgs[$argKey] = $rules[$index][$ruleKey]($arg);
                                     $found = true;
                                     break;
                                 }
@@ -67,19 +77,18 @@ trait Overloadable
                     if (!$found) {
                         $newArgs[$argKey] = $arg;
                     }
-                } else { // not object or callback
-                    $this->checkRuleIsArray($rules[$index]);
-                    if (in_array($type, $rules[$index]) || in_array($this->aliases[$type], $rules[$index])) {
-                        $newArgs[$argKey] = $arg;
-                    } elseif (array_key_exists($type, $rules[$index])) {
-                        $this->checkRuleActionIsCallback($rules[$index][$type]);
-                        $newArgs[$argKey] = $rules[$index][$type]($arg);
-                    } elseif (array_key_exists($this->aliases[$type], $rules[$index])) {
-                        $this->checkRuleActionIsCallback($rules[$index][$this->aliases[$type]]);
-                        $newArgs[$argKey] = $rules[$index][$this->aliases[$type]]($arg);
-                    } else {
-                        $this->typeMismatch($type, $argKey);
-                    }
+                } else if (array_key_exists($type, $rules[$index])) { // if type is primitive and exists in array
+                    $this->checkRuleActionIsCallback($rules[$index][$type]);
+                    $newArgs[$argKey] = $rules[$index][$type]($arg);
+                } else if (array_key_exists($this->aliases[$type], $rules[$index])) { // if type is primitive and exists as alias
+                    $this->checkRuleActionIsCallback($rules[$index][$this->aliases[$type]]);
+                    $newArgs[$argKey] = $rules[$index][$this->aliases[$type]]($arg);
+                } else if (in_array($type, $rules[$index])) {
+                    $newArgs[$argKey] = $arg;
+                } else if (in_array($this->aliases[$type], $rules[$index])) {
+                    $newArgs[$argKey] = $arg;
+                } else { // any other type
+                    $newArgs[$argKey] = $arg;
                 }
                 $counter++;
             }
@@ -113,6 +122,6 @@ trait Overloadable
      */
     private function typeMismatch($argType, $argKey)
     {
-        throw new Exception("Type mismatch of object with type: " . $argType ." with key: " . $argKey);
+        throw new Exception("Type mismatch of object with type: " . $argType . " with key: " . $argKey);
     }
 }
